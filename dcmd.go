@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -21,19 +23,32 @@ func main() {
 
 	sessions := openSessions(config)
 
+	signals := make(chan os.Signal)
+	signal.Notify(signals, syscall.SIGINT)
+
 	var commandsDone []chan bool
+	var connectedSessions []Session
 	for session := range sessions {
 		if session.Session == nil {
 			continue
 		}
-		defer session.Session.Close()
+		defer session.CloseOnce()
 		host := session.Host
 		outScanner := initScanner(session)
 		d := make(chan bool)
 		commandsDone = append(commandsDone, d)
+		connectedSessions = append(connectedSessions, session)
+		requestPty(session.Session)
 		go runRemote(command, session, d)
 		go output(host, outScanner)
 	}
+
+	go func() {
+		<-signals
+		for _, session := range connectedSessions {
+			session.CloseOnce()
+		}
+	}()
 
 	for _, d := range commandsDone {
 		<-d

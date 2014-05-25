@@ -13,6 +13,11 @@ import (
 type Session struct {
 	Host    string
 	Session *ssh.Session
+	once    *sync.Once
+}
+
+func (s Session) CloseOnce() {
+	s.once.Do(func() { s.Session.Close() })
 }
 
 func openSessions(hostConfig HostConfig) chan Session {
@@ -24,7 +29,7 @@ func openSessions(hostConfig HostConfig) chan Session {
 		go func(host string) {
 			defer wg.Done()
 			session := connect(host, clientConfig)
-			sessions <- Session{host, session}
+			sessions <- Session{host, session, new(sync.Once)}
 		}(host)
 	}
 	go func() {
@@ -81,4 +86,11 @@ func getKeySigner(filename string) ssh.Signer {
 		errLogger.Fatalln(err)
 	}
 	return signer
+}
+
+func requestPty(session *ssh.Session) {
+	err := session.RequestPty("xterm", 80, 40, nil)
+	if err != nil {
+		errLogger.Println(err)
+	}
 }
