@@ -12,7 +12,7 @@ import (
 const (
 	XDG_CONFIG_HOME     = "$XDG_CONFIG_HOME"
 	DEFAULT_CONFIG_HOME = "$HOME/.config"
-	CONFIG_SUBDIR       = "dcmd"
+	CONFIG_SUBDIR       = "mcmd"
 )
 
 type HostConfig struct {
