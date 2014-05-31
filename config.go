@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	XDG_CONFIG_HOME     = "$XDG_CONFIG_HOME"
+	XDG_CONFIG_HOME     = "XDG_CONFIG_HOME"
 	DEFAULT_CONFIG_HOME = "$HOME/.config"
 	CONFIG_SUBDIR       = "mcmd"
 )
