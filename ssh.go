@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"sync"
 
 	"code.google.com/p/go.crypto/ssh"
+	"code.google.com/p/go.crypto/ssh/agent"
 	"github.com/howeyc/gopass"
 )
 
@@ -43,6 +45,8 @@ func clientConfig(user string, auth AuthConfig) *ssh.ClientConfig {
 	var configuredMethod ssh.AuthMethod
 	if auth.Password {
 		configuredMethod = ssh.Password(getPassword())
+	} else if auth.Agent {
+		configuredMethod = ssh.PublicKeys(getSignersFromAgent()...)
 	} else {
 		configuredMethod = ssh.PublicKeys(getKeySigner(auth.Privatekey))
 	}
@@ -86,6 +90,35 @@ func getKeySigner(filename string) ssh.Signer {
 		errLogger.Fatalln(err)
 	}
 	return signer
+}
+
+func getSignersFromAgent() []ssh.Signer {
+	agent := getAgent()
+	signers, err := agent.Signers()
+	if err != nil {
+		errLogger.Fatalln(err)
+	}
+	return signers
+}
+
+func getAgent() agent.Agent {
+	agentSocket := os.Getenv("SSH_AUTH_SOCK")
+	if agentSocket == "" {
+		errLogger.Fatalln("No ssh agent found")
+	}
+	addr, err := net.ResolveUnixAddr("unix", agentSocket)
+	if err != nil {
+		errLogger.Fatalln(err)
+	}
+	conn, err := net.DialUnix("unix", nil, addr)
+	if err != nil {
+		errLogger.Fatalln(err)
+	}
+	agent := agent.NewClient(conn)
+	if err != nil {
+		errLogger.Fatalln(err)
+	}
+	return agent
 }
 
 func requestPty(session *ssh.Session) {

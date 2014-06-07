@@ -24,6 +24,7 @@ type HostConfig struct {
 type AuthConfig struct {
 	Password   bool
 	Privatekey string
+	Agent      bool
 }
 
 func loadConfig() HostConfig {
