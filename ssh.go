@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -24,10 +25,10 @@ func (s Session) CloseOnce() {
 
 func openSessions(hostConfig HostConfig) chan Session {
 	sessions := make(chan Session)
-	clientConfig := clientConfig(hostConfig.User, hostConfig.Auth)
 	var wg sync.WaitGroup
 	for _, host := range hostConfig.Hosts {
 		wg.Add(1)
+		clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
 		go func(host string) {
 			defer wg.Done()
 			session := connect(host, clientConfig)
@@ -41,20 +42,16 @@ func openSessions(hostConfig HostConfig) chan Session {
 	return sessions
 }
 
-func clientConfig(user string, auth AuthConfig) *ssh.ClientConfig {
-	var configuredMethod ssh.AuthMethod
-	if auth.Password {
-		configuredMethod = ssh.Password(getPassword())
-	} else if auth.Agent {
-		configuredMethod = ssh.PublicKeys(getSignersFromAgent()...)
-	} else {
-		configuredMethod = ssh.PublicKeys(getKeySigner(auth.Privatekey))
+func clientConfig(user, pkFile string) *ssh.ClientConfig {
+	signerCallback := func() ([]ssh.Signer, error) {
+		return getAllSigners(pkFile)
 	}
 
 	config := ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
-			configuredMethod,
+			ssh.PublicKeysCallback(signerCallback),
+			ssh.PasswordCallback(getPassword),
 		},
 	}
 	return &config
@@ -74,51 +71,76 @@ func connect(host string, config *ssh.ClientConfig) *ssh.Session {
 	return session
 }
 
-func getPassword() string {
-	fmt.Print("Password: ")
-	return string(gopass.GetPasswd())
+var sharedPassword string
+var pwOnce sync.Once
+
+func getPassword() (string, error) {
+	pwOnce.Do(func() {
+		fmt.Print("Password: ")
+		sharedPassword = string(gopass.GetPasswd())
+	})
+	return sharedPassword, nil
 }
 
-func getKeySigner(filename string) ssh.Signer {
+func getAllSigners(pkFile string) ([]ssh.Signer, error) {
+	var signers []ssh.Signer
+	agentSigners, err := getSignersFromAgent()
+	if err == nil {
+		signers = append(signers, agentSigners...)
+	}
+	if pkFile != "" {
+		keySigner, err := getKeySigner(pkFile)
+		if err != nil {
+			return nil, err
+		}
+		signers = append(signers, keySigner)
+	}
+	return signers, nil
+}
+
+func getKeySigner(filename string) (ssh.Signer, error) {
 	filename = os.ExpandEnv(filename)
 	keyContents, err := ioutil.ReadFile(filename)
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
 	signer, err := ssh.ParsePrivateKey(keyContents)
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
-	return signer
+	return signer, nil
 }
 
-func getSignersFromAgent() []ssh.Signer {
-	agent := getAgent()
+func getSignersFromAgent() ([]ssh.Signer, error) {
+	agent, err := getAgent()
+	if err != nil {
+		return nil, err
+	}
 	signers, err := agent.Signers()
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
-	return signers
+	return signers, nil
 }
 
-func getAgent() agent.Agent {
+func getAgent() (agent.Agent, error) {
 	agentSocket := os.Getenv("SSH_AUTH_SOCK")
 	if agentSocket == "" {
-		errLogger.Fatalln("No ssh agent found")
+		return nil, errors.New("no ssh agent found")
 	}
 	addr, err := net.ResolveUnixAddr("unix", agentSocket)
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
 	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
 	agent := agent.NewClient(conn)
 	if err != nil {
-		errLogger.Fatalln(err)
+		return nil, err
 	}
-	return agent
+	return agent, nil
 }
 
 func requestPty(session *ssh.Session) {

@@ -26,14 +26,12 @@ mcmd prod-servers df -h
 
 ## Host files
 
-Connection information is specified in host files.  In addition to the list of hosts, you can also set the username and authentication method.
+Connection information is specified in host files.  By default, mcmd will attempt to authenticate using an ssh agent.  If an agent with the required key(s) is running, no auth configuration is needed.  You can also specify a private key for mcmd to authenticate with (currently only passphraseless keys are supported).  Mcmd will ask for a password if neither of the above conditions are met.
 
-Use password auth:
+Use ssh agent or password auth:
 
 ```yaml
 user: my-username
-auth:
-  password: true
 hosts:
   - host1:22
   - host2:22
@@ -43,8 +41,7 @@ Specify private key:
 
 ```yaml
 user: my-username
-auth:
-  privatekey: $HOME/.ssh/my_key_rsa
+privatekey: $HOME/.ssh/my_key_rsa
 hosts:
   - host1:22
   - host2:22

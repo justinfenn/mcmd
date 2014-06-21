@@ -16,15 +16,9 @@ const (
 )
 
 type HostConfig struct {
-	User  string
-	Hosts []string
-	Auth  AuthConfig
-}
-
-type AuthConfig struct {
-	Password   bool
+	User       string
 	Privatekey string
-	Agent      bool
+	Hosts      []string
 }
 
 func loadConfig() HostConfig {
