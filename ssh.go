@@ -16,11 +16,6 @@ import (
 type Session struct {
 	Host    string
 	Session *ssh.Session
-	once    *sync.Once
-}
-
-func (s Session) CloseOnce() {
-	s.once.Do(func() { s.Session.Close() })
 }
 
 func openSessions(hostConfig HostConfig) chan Session {
@@ -31,8 +26,12 @@ func openSessions(hostConfig HostConfig) chan Session {
 		clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
 		go func(host string) {
 			defer wg.Done()
-			session := connect(host, clientConfig)
-			sessions <- Session{host, session, new(sync.Once)}
+			session, err := connect(host, clientConfig)
+			if err != nil {
+				errLogger.Print(err)
+			} else {
+				sessions <- Session{host, session}
+			}
 		}(host)
 	}
 	go func() {
@@ -57,18 +56,16 @@ func clientConfig(user, pkFile string) *ssh.ClientConfig {
 	return &config
 }
 
-func connect(host string, config *ssh.ClientConfig) *ssh.Session {
+func connect(host string, config *ssh.ClientConfig) (*ssh.Session, error) {
 	conn, err := ssh.Dial("tcp", host, config)
 	if err != nil {
-		errLogger.Print(err)
-		return nil
+		return nil, err
 	}
 	session, err := conn.NewSession()
 	if err != nil {
-		errLogger.Print(err)
-		return nil
+		return nil, err
 	}
-	return session
+	return session, nil
 }
 
 var sharedPassword string

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -26,32 +27,32 @@ func main() {
 	signals := make(chan os.Signal)
 	signal.Notify(signals, syscall.SIGINT)
 
-	var commandsDone []chan bool
-	var connectedSessions []Session
-	for session := range sessions {
-		if session.Session == nil {
-			continue
+	var wg sync.WaitGroup
+	done := make(chan bool)
+loop:
+	for {
+		select {
+		case <-signals:
+			break loop
+		case session, ok := <-sessions:
+			if ok {
+				defer session.Session.Close()
+				host := session.Host
+				outScanner := initScanner(session)
+				requestPty(session.Session)
+				wg.Add(1)
+				go runRemote(command, session, &wg)
+				go output(host, outScanner)
+			} else {
+				go func() {
+					wg.Wait()
+					done <- true
+				}()
+				sessions = nil
+			}
+		case <-done:
+			break loop
 		}
-		defer session.CloseOnce()
-		host := session.Host
-		outScanner := initScanner(session)
-		d := make(chan bool)
-		commandsDone = append(commandsDone, d)
-		connectedSessions = append(connectedSessions, session)
-		requestPty(session.Session)
-		go runRemote(command, session, d)
-		go output(host, outScanner)
-	}
-
-	go func() {
-		<-signals
-		for _, session := range connectedSessions {
-			session.CloseOnce()
-		}
-	}()
-
-	for _, d := range commandsDone {
-		<-d
 	}
 
 	fmt.Println("done")
@@ -67,12 +68,12 @@ func initScanner(session Session) *bufio.Scanner {
 	return scanner
 }
 
-func runRemote(command string, session Session, done chan bool) {
+func runRemote(command string, session Session, wg *sync.WaitGroup) {
 	err := session.Session.Run(command)
 	if err != nil {
 		errLogger.Print("remote command failed: " + err.Error())
 	}
-	done <- true
+	wg.Done()
 }
 
 func output(host string, scanner *bufio.Scanner) {
