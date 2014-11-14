@@ -54,8 +54,6 @@ loop:
 			break loop
 		}
 	}
-
-	fmt.Println("done")
 }
 
 func remoteCommand() string {
@@ -80,5 +78,4 @@ func output(host string, scanner *bufio.Scanner) {
 	for scanner.Scan() {
 		fmt.Println("[" + host + "] " + scanner.Text())
 	}
-	fmt.Println("---")
 }
