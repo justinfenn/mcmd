@@ -8,9 +8,9 @@ import (
 	"os"
 	"sync"
 
-	"code.google.com/p/go.crypto/ssh"
-	"code.google.com/p/go.crypto/ssh/agent"
 	"github.com/howeyc/gopass"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type Session struct {
