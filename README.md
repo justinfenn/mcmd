@@ -33,8 +33,8 @@ Use ssh agent or password auth:
 ```yaml
 user: my-username
 hosts:
-  - host1:22
-  - host2:22
+  - host1
+  - host2:2222 # custom port
 ```
 
 Specify private key:
@@ -43,8 +43,8 @@ Specify private key:
 user: my-username
 privatekey: $HOME/.ssh/my_key_rsa
 hosts:
-  - host1:22
-  - host2:22
-  - host3:22
-  - host4:22
+  - host1
+  - host2
+  - host3
+  - host4
 ```

@@ -57,7 +57,7 @@ func clientConfig(user, pkFile string) *ssh.ClientConfig {
 }
 
 func connect(host string, config *ssh.ClientConfig) (*ssh.Session, error) {
-	conn, err := ssh.Dial("tcp", host, config)
+	conn, err := ssh.Dial("tcp", completeAddress(host), config)
 	if err != nil {
 		return nil, err
 	}
@@ -145,4 +145,13 @@ func requestPty(session *ssh.Session) {
 	if err != nil {
 		errLogger.Println(err)
 	}
+}
+
+func completeAddress(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+		port = "ssh"
+	}
+	return net.JoinHostPort(host, port)
 }
