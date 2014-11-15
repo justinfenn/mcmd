@@ -38,8 +38,12 @@ loop:
 			if ok {
 				defer session.Session.Close()
 				host := session.Host
+				err := requestPty(session.Session)
+				if err != nil {
+					errLogger.Print(prependHost(host, err.Error()))
+					break
+				}
 				outScanner := initScanner(session)
-				requestPty(session.Session)
 				wg.Add(1)
 				go runRemote(command, session, &wg)
 				go output(host, outScanner)
@@ -69,13 +73,17 @@ func initScanner(session Session) *bufio.Scanner {
 func runRemote(command string, session Session, wg *sync.WaitGroup) {
 	err := session.Session.Run(command)
 	if err != nil {
-		errLogger.Print("remote command failed: " + err.Error())
+		errLogger.Print(prependHost(session.Host, err.Error()))
 	}
 	wg.Done()
 }
 
 func output(host string, scanner *bufio.Scanner) {
 	for scanner.Scan() {
-		fmt.Println("[" + host + "] " + scanner.Text())
+		fmt.Println(prependHost(host, scanner.Text()))
 	}
+}
+
+func prependHost(host, str string) string {
+	return "[" + host + "] " + str
 }

@@ -28,7 +28,7 @@ func openSessions(hostConfig HostConfig) chan Session {
 			defer wg.Done()
 			session, err := connect(host, clientConfig)
 			if err != nil {
-				errLogger.Print(err)
+				errLogger.Print(err.Error())
 			} else {
 				sessions <- Session{host, session}
 			}
@@ -140,11 +140,9 @@ func getAgent() (agent.Agent, error) {
 	return agent, nil
 }
 
-func requestPty(session *ssh.Session) {
+func requestPty(session *ssh.Session) error {
 	err := session.RequestPty("xterm", 80, 40, nil)
-	if err != nil {
-		errLogger.Println(err)
-	}
+	return err
 }
 
 func completeAddress(addr string) string {
