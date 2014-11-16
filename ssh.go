@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,8 +15,9 @@ import (
 )
 
 type Session struct {
-	Host    string
-	Session *ssh.Session
+	Host       string
+	Session    *ssh.Session
+	OutScanner *bufio.Scanner
 }
 
 func openSessions(hostConfig HostConfig) chan Session {
@@ -29,9 +31,14 @@ func openSessions(hostConfig HostConfig) chan Session {
 			session, err := connect(host, clientConfig)
 			if err != nil {
 				errLogger.Print(err.Error())
-			} else {
-				sessions <- Session{host, session}
+				return
 			}
+			scanner, err := prepareOutput(session)
+			if err != nil {
+				errLogger.Print(prependHost(host, err.Error()))
+				return
+			}
+			sessions <- Session{host, session, scanner}
 		}(host)
 	}
 	go func() {
@@ -66,6 +73,16 @@ func connect(host string, config *ssh.ClientConfig) (*ssh.Session, error) {
 		return nil, err
 	}
 	return session, nil
+}
+
+func prepareOutput(session *ssh.Session) (*bufio.Scanner, error) {
+	err := requestPty(session)
+	if err != nil {
+		return nil, err
+	}
+	reader, _ := session.StdoutPipe()
+	scanner := bufio.NewScanner(reader)
+	return scanner, nil
 }
 
 var sharedPassword string
