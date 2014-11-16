@@ -33,6 +33,7 @@ loop:
 	for {
 		select {
 		case <-signals:
+			fmt.Println() // clean up for the next prompt
 			break loop
 		case session, ok := <-sessions:
 			if ok {
