@@ -14,38 +14,53 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
-type Session struct {
-	Host       string
-	Session    *ssh.Session
-	OutScanner *bufio.Scanner
-}
-
-func openSessions(hostConfig HostConfig) chan Session {
-	sessions := make(chan Session)
+func runCommands(command string, hostConfig HostConfig) chan bool {
 	var wg sync.WaitGroup
 	for _, host := range hostConfig.Hosts {
 		wg.Add(1)
-		clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
 		go func(host string) {
-			defer wg.Done()
-			session, err := connect(host, clientConfig)
-			if err != nil {
-				errLogger.Print(err.Error())
-				return
-			}
-			scanner, err := prepareOutput(session)
-			if err != nil {
-				errLogger.Print(prependHost(host, err.Error()))
-				return
-			}
-			sessions <- Session{host, session, scanner}
+			runCommand(command, host, hostConfig)
+			wg.Done()
 		}(host)
 	}
+
+	done := make(chan bool)
 	go func() {
 		wg.Wait()
-		close(sessions)
+		done <- true
 	}()
-	return sessions
+	return done
+}
+
+func runCommand(command, host string, hostConfig HostConfig) {
+	clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
+	session, err := connect(host, clientConfig)
+	if err != nil {
+		errLogger.Print(err.Error())
+		return
+	}
+	defer session.Close()
+	scanner, err := prepareOutput(session)
+	if err != nil {
+		errLogger.Print(prependHost(host, err.Error()))
+		return
+	}
+	err = session.Start(command)
+	if err != nil {
+		errLogger.Print(prependHost(host, err.Error()))
+		return
+	}
+	for scanner.Scan() {
+		fmt.Println(prependHost(host, scanner.Text()))
+	}
+	err = scanner.Err()
+	if err != nil {
+		errLogger.Print(prependHost(host, err.Error()))
+	}
+	err = session.Wait()
+	if err != nil {
+		errLogger.Print(prependHost(host, err.Error()))
+	}
 }
 
 func clientConfig(user, pkFile string) *ssh.ClientConfig {
