@@ -85,15 +85,16 @@ func prepareOutput(session *ssh.Session) (*bufio.Scanner, error) {
 	return scanner, nil
 }
 
-var sharedPassword string
+var sharedPassword []byte
+var sharedPasswordErr error
 var pwOnce sync.Once
 
 func getPassword() (string, error) {
 	pwOnce.Do(func() {
 		fmt.Print("Password: ")
-		sharedPassword = string(gopass.GetPasswd())
+		sharedPassword, sharedPasswordErr = gopass.GetPasswd()
 	})
-	return sharedPassword, nil
+	return string(sharedPassword), sharedPasswordErr
 }
 
 func getAllSigners(pkFile string) ([]ssh.Signer, error) {
