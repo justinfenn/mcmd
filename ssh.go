@@ -16,12 +16,12 @@ import (
 
 func runCommands(command string, hostConfig HostConfig) chan bool {
 	var wg sync.WaitGroup
-	for _, host := range hostConfig.Hosts {
+	for hostIndex, _ := range hostConfig.Hosts {
 		wg.Add(1)
-		go func(host string) {
-			runCommand(command, host, hostConfig)
+		go func(hostIndex int) {
+			runCommand(command, hostIndex, hostConfig)
 			wg.Done()
-		}(host)
+		}(hostIndex)
 	}
 
 	done := make(chan bool)
@@ -32,7 +32,8 @@ func runCommands(command string, hostConfig HostConfig) chan bool {
 	return done
 }
 
-func runCommand(command, host string, hostConfig HostConfig) {
+func runCommand(command string, hostIndex int, hostConfig HostConfig) {
+	host := hostConfig.Hosts[hostIndex]
 	clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
 	session, err := connect(host, clientConfig)
 	if err != nil {
@@ -42,24 +43,24 @@ func runCommand(command, host string, hostConfig HostConfig) {
 	defer session.Close()
 	scanner, err := prepareOutput(session)
 	if err != nil {
-		errLogger.Print(prependHost(host, err.Error()))
+		errLogger.Print(formatOutput(hostIndex, host, err.Error()))
 		return
 	}
 	err = session.Start(command)
 	if err != nil {
-		errLogger.Print(prependHost(host, err.Error()))
+		errLogger.Print(formatOutput(hostIndex, host, err.Error()))
 		return
 	}
 	for scanner.Scan() {
-		fmt.Println(prependHost(host, scanner.Text()))
+		fmt.Println(formatOutput(hostIndex, host, scanner.Text()))
 	}
 	err = scanner.Err()
 	if err != nil {
-		errLogger.Print(prependHost(host, err.Error()))
+		errLogger.Print(formatOutput(hostIndex, host, err.Error()))
 	}
 	err = session.Wait()
 	if err != nil {
-		errLogger.Print(prependHost(host, err.Error()))
+		errLogger.Print(formatOutput(hostIndex, host, err.Error()))
 	}
 }
 

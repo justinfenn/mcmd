@@ -8,10 +8,22 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/fatih/color"
 )
 
 var (
 	errLogger = log.New(os.Stderr, "", 0)
+	COLORS    = []func(...interface{}) string{
+		color.New(color.FgGreen).SprintFunc(),
+		color.New(color.FgRed).SprintFunc(),
+		color.New(color.FgBlue).SprintFunc(),
+		color.New(color.FgYellow).SprintFunc(),
+		color.New(color.FgMagenta).SprintFunc(),
+		color.New(color.FgWhite).SprintFunc(),
+		color.New(color.FgCyan).SprintFunc(),
+		color.New(color.FgBlack).SprintFunc(),
+	}
 )
 
 func main() {
@@ -36,6 +48,7 @@ func remoteCommand() string {
 	return strings.Join(flag.Args()[1:], " ")
 }
 
-func prependHost(host, str string) string {
-	return "[" + host + "] " + str
+func formatOutput(hostIndex int, host, str string) string {
+	colorFunc := COLORS[hostIndex%len(COLORS)]
+	return colorFunc("["+host+"] ") + str
 }
