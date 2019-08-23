@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/v1/yaml"
+	"gopkg.in/yaml.v1"
 )
 
 const (
