@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	XDG_CONFIG_HOME     = "XDG_CONFIG_HOME"
-	DEFAULT_CONFIG_HOME = "$HOME/.config"
-	CONFIG_SUBDIR       = "mcmd"
+	XDG_CONFIG_HOME          = "XDG_CONFIG_HOME"
+	DEFAULT_CONFIG_HOME      = "$HOME/.config"
+	CONFIG_SUBDIR            = "mcmd"
+	DEFAULT_KNOWN_HOSTS_FILE = "$HOME/.ssh/known_hosts"
 )
 
 type HostConfig struct {

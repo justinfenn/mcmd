@@ -24,6 +24,8 @@ Mcmd will first try to treat the host file parameter as a path to the file.  If 
 mcmd prod-servers df -h
 ```
 
+**Note:** The target hosts need to have correct entries in a `known_hosts` file.  The easiest way to ensure this is done is to connect to each host using `ssh` first.  Mcmd will look for a `known_hosts` file in `$HOME/.ssh/known_hosts`.
+
 ## Host files
 
 Connection information is specified in host files.  By default, mcmd will attempt to authenticate using an ssh agent.  If an agent with the required key(s) is running, no auth configuration is needed.  You can also specify a private key for mcmd to authenticate with (currently only passphraseless keys are supported).  Mcmd will ask for a password if neither of the above conditions are met.

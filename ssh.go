@@ -12,14 +12,16 @@ import (
 	"github.com/howeyc/gopass"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func runCommands(command string, hostConfig HostConfig) chan bool {
 	var wg sync.WaitGroup
+	hostKeyCallback := createHostKeyCallback()
 	for hostIndex, _ := range hostConfig.Hosts {
 		wg.Add(1)
 		go func(hostIndex int) {
-			runCommand(command, hostIndex, hostConfig)
+			runCommand(command, hostIndex, hostConfig, hostKeyCallback)
 			wg.Done()
 		}(hostIndex)
 	}
@@ -32,9 +34,9 @@ func runCommands(command string, hostConfig HostConfig) chan bool {
 	return done
 }
 
-func runCommand(command string, hostIndex int, hostConfig HostConfig) {
+func runCommand(command string, hostIndex int, hostConfig HostConfig, hostKeyCallback ssh.HostKeyCallback) {
 	host := hostConfig.Hosts[hostIndex]
-	clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey)
+	clientConfig := clientConfig(hostConfig.User, hostConfig.Privatekey, hostKeyCallback)
 	session, err := connect(host, clientConfig)
 	if err != nil {
 		errLogger.Print(err.Error())
@@ -64,7 +66,7 @@ func runCommand(command string, hostIndex int, hostConfig HostConfig) {
 	}
 }
 
-func clientConfig(user, pkFile string) *ssh.ClientConfig {
+func clientConfig(user, pkFile string, hostKeyCallback ssh.HostKeyCallback) *ssh.ClientConfig {
 	signerCallback := func() ([]ssh.Signer, error) {
 		return getAllSigners(pkFile)
 	}
@@ -75,6 +77,7 @@ func clientConfig(user, pkFile string) *ssh.ClientConfig {
 			ssh.PublicKeysCallback(signerCallback),
 			ssh.PasswordCallback(getPassword),
 		},
+		HostKeyCallback: hostKeyCallback,
 	}
 	return &config
 }
@@ -186,4 +189,12 @@ func completeAddress(addr string) string {
 		port = "ssh"
 	}
 	return net.JoinHostPort(host, port)
+}
+
+func createHostKeyCallback() ssh.HostKeyCallback {
+	hostKeyCallback, err := knownhosts.New(os.ExpandEnv(DEFAULT_KNOWN_HOSTS_FILE))
+	if err != nil {
+		errLogger.Fatalln(err.Error())
+	}
+	return hostKeyCallback
 }
