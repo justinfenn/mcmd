@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	XDG_CONFIG_HOME          = "XDG_CONFIG_HOME"
-	DEFAULT_CONFIG_HOME      = "$HOME/.config"
 	CONFIG_SUBDIR            = "mcmd"
 	DEFAULT_KNOWN_HOSTS_FILE = "$HOME/.ssh/known_hosts"
 )
@@ -44,14 +42,11 @@ func readHostfile() []byte {
 }
 
 func getConfigLocationCandidates(configFileParam string) []string {
-	var configRoot, configDir string
-	xdgHome := os.Getenv(XDG_CONFIG_HOME)
-	if xdgHome != "" {
-		configRoot = xdgHome
-	} else {
-		configRoot = os.ExpandEnv(DEFAULT_CONFIG_HOME)
+	configRoot, err := os.UserConfigDir()
+	if err != nil {
+		errLogger.Fatalf("no user config dir found")
 	}
-	configDir = path.Join(configRoot, CONFIG_SUBDIR)
+	configDir := path.Join(configRoot, CONFIG_SUBDIR)
 	return []string{configFileParam,
 		path.Join(configDir, configFileParam+".yml"),
 		path.Join(configDir, configFileParam+".yaml")}
